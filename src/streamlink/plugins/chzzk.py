@@ -122,13 +122,6 @@ class ChzzkAPI:
                     validate.all(
                         {
                             "code": 200,
-                            "content": None,
-                        },
-                        validate.transform(lambda _: ("success", None)),
-                    ),
-                    validate.all(
-                        {
-                            "code": 200,
                             "content": dict,
                         },
                         validate.get("content"),
@@ -152,26 +145,29 @@ class ChzzkAPI:
                     {"channelName": str},
                     validate.get("channelName"),
                 ),
-                "livePlaybackJson": validate.none_or_all(
-                    str,
-                    validate.parse_json(),
-                    {
-                        "media": [
-                            validate.all(
-                                {
-                                    "mediaId": str,
-                                    "protocol": str,
-                                    "path": validate.url(),
-                                },
-                                validate.union_get(
-                                    "mediaId",
-                                    "protocol",
-                                    "path",
+                "livePlaybackJson": validate.any(
+                    None,
+                    validate.all(
+                        str,
+                        validate.parse_json(),
+                        {
+                            "media": [
+                                validate.all(
+                                    {
+                                        "mediaId": str,
+                                        "protocol": str,
+                                        "path": validate.url(),
+                                    },
+                                    validate.union_get(
+                                        "mediaId",
+                                        "protocol",
+                                        "path",
+                                    ),
                                 ),
-                            ),
-                        ],
-                    },
-                    validate.get("media"),
+                            ],
+                        },
+                        validate.get("media"),
+                    ),
                 ),
             },
             validate.union_get(
@@ -258,8 +254,6 @@ class ChzzkAPI:
 class Chzzk(Plugin):
     _API_VOD_PLAYBACK_URL = "https://apis.naver.com/neonplayer/vodplay/v2/playback/{video_id}?key={in_key}"
 
-    _STATUS_OPEN = "OPEN"
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._api = ChzzkAPI(self.session)
@@ -268,8 +262,6 @@ class Chzzk(Plugin):
         datatype, data = self._api.get_live_detail(channel_id)
         if datatype == "error":
             log.error(data)
-            return
-        if data is None:
             return
 
         media, status, self.id, self.author, self.category, self.title, adult = data
