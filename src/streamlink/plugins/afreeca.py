@@ -217,6 +217,7 @@ class AfreecaTV(Plugin):
         self.id = channel.get("BNO")
         self.author = channel.get("BJNICK")
         self.title = channel.get("TITLE")
+        self.is_live = True
 
         streams = {}
         for item in channel.get("VIEWPRESET"):

@@ -14,11 +14,13 @@ import json
 import logging
 import re
 from urllib.parse import urlparse, urlunparse
+from typing import Optional
 
 from streamlink.plugin import Plugin, PluginError, pluginmatcher
 from streamlink.plugin.api import useragents, validate
 from streamlink.stream.ffmpegmux import MuxedStream
 from streamlink.stream.hls import HLSStream
+from streamlink.stream.dash import DASHStream
 from streamlink.stream.http import HTTPStream
 from streamlink.utils.data import search_dict
 from streamlink.utils.parse import parse_json
@@ -41,7 +43,8 @@ log = logging.getLogger(__name__)
 ))
 class YouTube(Plugin):
     _re_ytInitialData = re.compile(r"""var\s+ytInitialData\s*=\s*({.*?})\s*;\s*</script>""", re.DOTALL)
-    _re_ytInitialPlayerResponse = re.compile(r"""var\s+ytInitialPlayerResponse\s*=\s*({.*?});\s*var\s+\w+\s*=""", re.DOTALL)
+    _re_ytInitialPlayerResponse = re.compile(
+        r"""var\s+ytInitialPlayerResponse\s*=\s*({.*?});\s*var\s+\w+\s*=""", re.DOTALL)
 
     _url_canonical = "https://www.youtube.com/watch?v={video_id}"
     _url_channelid_live = "https://www.youtube.com/channel/{channel_id}/live"
@@ -70,6 +73,9 @@ class YouTube(Plugin):
         256: 256,
         258: 258,
     }
+
+    latency_class: Optional[str] = None
+    """Metadata 'latency_class' attribute: latency class of the youtube stream."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -114,7 +120,8 @@ class YouTube(Plugin):
                 validate.xml_find(".//form[@action='https://consent.youtube.com/s']"),
                 validate.all(
                     validate.xml_xpath(".//form[@action='https://consent.youtube.com/save']"),
-                    validate.filter(lambda elem: elem.xpath(".//input[@type='hidden'][@name='set_ytc'][@value='true']")),
+                    validate.filter(lambda elem: elem.xpath(
+                        ".//input[@type='hidden'][@name='set_ytc'][@value='true']")),
                     validate.get(0),
                 ),
             ),
@@ -159,6 +166,7 @@ class YouTube(Plugin):
                     validate.optional("isLiveDvrEnabled"): validate.transform(bool),
                     validate.optional("isLowLatencyLiveStream"): validate.transform(bool),
                     validate.optional("isPrivate"): validate.transform(bool),
+                    validate.optional("latencyClass"): str,
                 },
                 "microformat": validate.all(
                     validate.any(
@@ -182,6 +190,7 @@ class YouTube(Plugin):
                 ("microformat", "category"),
                 ("videoDetails", "title"),
                 ("videoDetails", "isLive"),
+                ("videoDetails", "latencyClass"),
             ),
         )
         videoDetails = schema.validate(data)
@@ -192,6 +201,7 @@ class YouTube(Plugin):
     def _schema_streamingdata(cls, data):
         schema = validate.Schema(
             {"streamingData": {
+                validate.optional("dashManifestUrl"): str,
                 validate.optional("hlsManifestUrl"): str,
                 validate.optional("formats"): [validate.all(
                     {
@@ -206,7 +216,8 @@ class YouTube(Plugin):
                         "itag": int,
                         "mimeType": validate.all(
                             str,
-                            validate.regex(re.compile(r"""^(?P<type>\w+)/(?P<container>\w+); codecs="(?P<codecs>.+)"$""")),
+                            validate.regex(re.compile(
+                                r"""^(?P<type>\w+)/(?P<container>\w+); codecs="(?P<codecs>.+)"$""")),
                             validate.union_get("type", "codecs"),
                         ),
                         validate.optional("url"): validate.url(scheme="http"),
@@ -216,10 +227,10 @@ class YouTube(Plugin):
                 )],
             }},
             validate.get("streamingData"),
-            validate.union_get("hlsManifestUrl", "formats", "adaptiveFormats"),
+            validate.union_get("hlsManifestUrl", "dashManifestUrl", "formats", "adaptiveFormats"),
         )
-        hls_manifest, formats, adaptive_formats = schema.validate(data)
-        return hls_manifest, formats or [], adaptive_formats or []
+        hls_manifest, dash_manifest, formats, adaptive_formats = schema.validate(data)
+        return hls_manifest, dash_manifest, formats or [], adaptive_formats or []
 
     def _create_adaptive_streams(self, adaptive_formats):
         streams = {}
@@ -372,14 +383,15 @@ class YouTube(Plugin):
             if not self._data_status(data, True):
                 return
 
-        self.id, self.author, self.category, self.title, is_live = self._schema_videodetails(data)
+        self.id, self.author, self.category, self.title, self.is_live, self.latency_class = self._schema_videodetails(
+            data)
         log.debug(f"Using video ID: {self.id}")
 
-        if is_live:
+        if self.is_live:
             log.debug("This video is live.")
 
         streams = {}
-        hls_manifest, formats, adaptive_formats = self._schema_streamingdata(data)
+        hls_manifest, dash_manifest, formats, adaptive_formats = self._schema_streamingdata(data)
 
         protected = next((True for url, *_ in formats + adaptive_formats if url is None), False)
         if protected:
@@ -390,11 +402,14 @@ class YouTube(Plugin):
                 continue
             streams[label] = HTTPStream(self.session, url)
 
-        if not is_live:
+        if not self.is_live:
             streams.update(self._create_adaptive_streams(adaptive_formats))
 
         if hls_manifest:
             streams.update(HLSStream.parse_variant_playlist(self.session, hls_manifest, name_key="pixels"))
+
+        # if dash_manifest:
+        #     streams.update(DASHStream.parse_manifest(self.session, dash_manifest))
 
         if not streams and protected:
             raise PluginError("This plugin does not support protected videos, try youtube-dl instead")

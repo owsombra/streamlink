@@ -82,7 +82,7 @@ class MuxedStream(Stream, Generic[TSubstreams]):
 class FFMPEGMuxer(StreamIO):
     __commands__: ClassVar[List[str]] = ["ffmpeg"]
 
-    DEFAULT_OUTPUT_FORMAT = "matroska"
+    DEFAULT_OUTPUT_FORMAT = "mpegts"
     DEFAULT_VIDEO_CODEC = "copy"
     DEFAULT_AUDIO_CODEC = "copy"
 

@@ -281,6 +281,8 @@ class Plugin:
     """Metadata 'author' attribute: the channel or broadcaster name, etc."""
     category: Optional[str] = None
     """Metadata 'category' attribute: name of a game being played, a music genre, etc."""
+    is_live: bool = False
+    """Metadata 'is_live' attribute: whether the stream is live."""
 
     _url: str = ""
 
@@ -509,6 +511,9 @@ class Plugin:
 
     def get_category(self) -> Optional[str]:
         return None if self.category is None else str(self.category).strip()
+
+    def get_is_live(self) -> bool:
+        return self.is_live
 
     def save_cookies(
         self,
