@@ -829,7 +829,7 @@ class Twitch(Plugin):
             return inner
 
         parent = super()
-        for metadata in "id", "author", "category", "title":
+        for metadata in "id", "author", "category", "title", "is_live":
             method = f"get_{metadata}"
             setattr(self, method, method_factory(getattr(parent, method)))
 
@@ -961,6 +961,9 @@ class Twitch(Plugin):
                 # Don't raise and simply return no streams on 4xx/5xx playlist responses
                 return
             raise PluginError(err) from err
+
+        if not extra_params.get('force_restart', False):
+            self.is_live = True
 
         for name in restricted_bitrates:
             if name not in streams:

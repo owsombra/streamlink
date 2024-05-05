@@ -291,6 +291,8 @@ class Plugin(metaclass=PluginMeta):
     author: str | None = None
     #: Metadata 'category' attribute: name of a game being played, a music genre, etc.
     category: str | None = None
+    #: Metadata 'is_live' attribute: whether the stream is live.
+    is_live: bool = False
 
     _url: str = ""
 
@@ -519,6 +521,9 @@ class Plugin(metaclass=PluginMeta):
 
     def get_category(self) -> str | None:
         return None if self.category is None else str(self.category).strip()
+
+    def get_is_live(self) -> bool:
+        return self.is_live
 
     def save_cookies(
         self,
