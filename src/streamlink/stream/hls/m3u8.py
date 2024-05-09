@@ -155,16 +155,11 @@ class M3U8Parser(Generic[TM3U8_co, THLSSegment_co, THLSPlaylist_co], metaclass=M
         self._extinf: ExtInf | None = None
         self._byterange: ByteRange | None = None
         self._discontinuity: bool = False
-<<<<<<< HEAD
+
         self._map: Map | None = None
         self._key: Key | None = None
         self._date: datetime | None = None
-=======
-        self._map: Optional[Map] = None
-        self._key: Optional[Key] = None
-        self._date: Optional[datetime] = None
-        self._offset: Optional[timedelta] = None
->>>>>>> ec23a143 (Delete: unnecessary plugins & Add: AfreecaTV broadcast start time tracking logic (Not precise way))
+        self._offset: timedelta | None = None
 
     @classmethod
     def create_stream_info(cls, streaminf: Mapping[str, str | None], streaminfoclass=None):

@@ -204,6 +204,7 @@ class AfreecaTV(Plugin):
             res = self.session.http.get(self.url)
             m = self._re_bno.search(res.text)
             if not m:
+                log.info("Could not find broadcast number.")
                 return
             self.id = bno = m.group("bno")
 
@@ -229,6 +230,12 @@ class AfreecaTV(Plugin):
 
         if live_check_only:
             return
+
+            m = self._re_bstart_time.search(res.text)
+            if not m:
+                log.error("Could not find broadcast start time.")
+                return
+            self.broadcast_start_time = datetime.strptime(m.group("bstart_time")+"+0900", "%Y-%m-%d %H:%M:%S%z")
 
         channel = self._get_channel_info(bno, username)
         log.trace(f"{channel!r}")

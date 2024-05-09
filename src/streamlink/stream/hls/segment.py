@@ -104,13 +104,7 @@ class HLSSegment(Segment):
     title: str | None
     key: Key | None
     discontinuity: bool
-<<<<<<< HEAD
     byterange: ByteRange | None
     date: datetime | None
     map: Map | None
-=======
-    byterange: Optional[ByteRange]
-    date: Optional[datetime]
-    offset: Optional[timedelta]
-    map: Optional[Map]
->>>>>>> ec23a143 (Delete: unnecessary plugins & Add: AfreecaTV broadcast start time tracking logic (Not precise way))
+    offset: timedelta | None
