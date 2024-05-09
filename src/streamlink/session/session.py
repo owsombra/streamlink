@@ -47,7 +47,7 @@ class Streamlink:
 
         self.ip: str = ""
         self.proxy_ip: str = ""
-        self.completed_segments: list[str] = []
+        self.completed_segments: list[int] = []
         self.broadcast_start_time: Optional[datetime] = None
 
         #: Options of this session instance.
