@@ -365,7 +365,7 @@ class Plugin(metaclass=PluginMeta):
 
         return stream_types
 
-    def streams(self, stream_types=None, sorting_excludes=None):
+    def streams(self, live_check_only=False, stream_types=None, sorting_excludes=None):
         """
         Attempts to extract available streams.
 
@@ -401,7 +401,7 @@ class Plugin(metaclass=PluginMeta):
         """
 
         try:
-            ostreams = self._get_streams()
+            ostreams = self._get_streams(live_check_only)
             if isinstance(ostreams, dict):
                 ostreams = ostreams.items()
 
@@ -494,7 +494,7 @@ class Plugin(metaclass=PluginMeta):
 
         return final_sorted_streams
 
-    def _get_streams(self):
+    def _get_streams(self, live_check_only=False):
         """
         Implement the stream and metadata retrieval here.
 
