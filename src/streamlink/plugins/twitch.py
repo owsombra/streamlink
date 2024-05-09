@@ -968,9 +968,6 @@ class Twitch(Plugin):
                 return
             raise PluginError(err) from err
 
-        if not extra_params.get('force_restart', False):
-            self.is_live = True
-
         for name in restricted_bitrates:
             if name not in streams:
                 log.warning(f"The quality '{name}' is not available since it requires a subscription.")
@@ -992,8 +989,10 @@ class Twitch(Plugin):
         elif self.clip_id:
             return self._get_clips()
         elif self.channel:
-            self._get_metadata()
-            return self._get_hls_streams_live() if not live_check_only and self.is_live else {}
+            if live_check_only and not self._checked_metadata:
+                self._checked_metadata = True
+                return self._get_metadata()
+            return self._get_hls_streams_live()
 
 
 __plugin__ = Twitch

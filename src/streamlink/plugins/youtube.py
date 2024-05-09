@@ -20,7 +20,7 @@ from streamlink.plugin import Plugin, PluginError, pluginmatcher
 from streamlink.plugin.api import useragents, validate
 from streamlink.stream.ffmpegmux import MuxedStream
 from streamlink.stream.hls import HLSStream
-from streamlink.stream.dash import DASHStream
+# from streamlink.stream.dash import DASHStream
 from streamlink.stream.http import HTTPStream
 from streamlink.utils.data import search_dict
 from streamlink.utils.parse import parse_json
