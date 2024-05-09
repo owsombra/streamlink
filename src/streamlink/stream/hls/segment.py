@@ -104,4 +104,5 @@ class HLSSegment(Segment):
     discontinuity: bool
     byterange: Optional[ByteRange]
     date: Optional[datetime]
+    offset: Optional[timedelta]
     map: Optional[Map]
