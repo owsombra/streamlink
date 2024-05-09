@@ -7,6 +7,7 @@ import re
 import time
 from collections.abc import Callable, Iterable, Mapping
 from contextlib import suppress
+from datetime import datetime
 from functools import partial
 from http.cookiejar import Cookie
 from typing import TYPE_CHECKING, Any, ClassVar, List, Literal, NamedTuple, Type, TypeVar, Union
@@ -293,6 +294,8 @@ class Plugin(metaclass=PluginMeta):
     category: str | None = None
     #: Metadata 'is_live' attribute: whether the stream is live.
     is_live: bool = False
+    #: Metadata 'broadcast_start_time' attribute: Broadcast start time.
+    broadcast_start_time: datetime | None = None
 
     _url: str = ""
 

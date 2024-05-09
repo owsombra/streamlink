@@ -4,7 +4,12 @@ import logging
 import warnings
 from collections.abc import Mapping
 from functools import lru_cache
+<<<<<<< HEAD
 from typing import Any
+=======
+from typing import Any, Dict, Optional, Tuple, Type
+from datetime import datetime
+>>>>>>> ec23a143 (Delete: unnecessary plugins & Add: AfreecaTV broadcast start time tracking logic (Not precise way))
 
 import streamlink.compat  # noqa: F401
 from streamlink import __version__
@@ -50,6 +55,7 @@ class Streamlink:
         self.ip: str = ""
         self.proxy_ip: str = ""
         self.completed_segments: list[str] = []
+        self.broadcast_start_time: Optional[datetime] = None
 
         #: Options of this session instance.
         #: :class:`StreamlinkOptions <streamlink.session.options.StreamlinkOptions>` is a subclass
