@@ -70,7 +70,7 @@ class ChzzkHLSStream(HLSStream):
     def _get_media_uri(self, media_path):
         res = self._fetch_variant_playlist(self.session, media_path)
         m3u8 = parse_m3u8(res)
-        return m3u8.playlists[0].uri
+        return m3u8.media[0].uri
 
     def _get_token_from(self, path):
         return path.split("/")[-2]
@@ -254,6 +254,8 @@ class ChzzkAPI:
 class Chzzk(Plugin):
     _API_VOD_PLAYBACK_URL = "https://apis.naver.com/neonplayer/vodplay/v2/playback/{video_id}?key={in_key}"
 
+    _STATUS_OPEN = "OPEN"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._api = ChzzkAPI(self.session)
@@ -276,9 +278,6 @@ class Chzzk(Plugin):
             return
 
         self.is_live = True
-
-        if live_check_only:
-            return
 
         if live_check_only:
             return
