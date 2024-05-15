@@ -538,8 +538,7 @@ class HLSStreamWorker(SegmentedStreamWorker[HLSSegment, Response]):
                     self.reload_playlist()
                 except StreamError as error:
                     # Do not retry if the response code is 429!
-                    if hasattr(error, 'err') and isinstance(error.err, HTTPError) and error.err.response.status_code == 429:
-                        self.reader.close()
+                    if hasattr(error, 'err') and hasattr(error.err, 'response') and error.err.response.status_code == 429:
                         return
                     log.warning(f"Failed to reload playlist: {error}")
 
