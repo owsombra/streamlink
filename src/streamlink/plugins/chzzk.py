@@ -122,6 +122,13 @@ class ChzzkAPI:
                     validate.all(
                         {
                             "code": 200,
+                            "content": None,
+                        },
+                        validate.transform(lambda data: ("success", None)),
+                    ),
+                    validate.all(
+                        {
+                            "code": 200,
                             "content": dict,
                         },
                         validate.get("content"),
@@ -264,6 +271,8 @@ class Chzzk(Plugin):
         datatype, data = self._api.get_live_detail(channel_id)
         if datatype == "error":
             log.error(data)
+            return
+        if data is None:
             return
 
         media, status, self.id, self.author, self.category, self.title, adult = data
