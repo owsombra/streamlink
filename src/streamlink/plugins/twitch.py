@@ -795,6 +795,8 @@ class Twitch(Plugin):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        # self.session.http.headers.pop('Referer')
+        # self.session.http.headers.pop('Origin')
         params = parse_qsd(urlparse(self.url).query)
 
         self.channel = self.match["channel"] if self.matches["live"] else None
