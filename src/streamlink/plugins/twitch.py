@@ -407,45 +407,32 @@ class TwitchAPI:
             ),
         ]
 
-        return self.call(
-            queries,
-            schema=validate.all(
-                validate.list(
-                    validate.all(
-                        {
-                            "data": {
-                                "userOrError": {
-                                    "displayName": str,
-                                },
-                            },
-                        },
-                    ),
-                    validate.all(
-                        {
-                            "data": {
-                                "user": {
-                                    "lastBroadcast": {
-                                        "title": str,
-                                    },
-                                    "stream": {
-                                        "id": str,
-                                        "game": {
-                                            "name": str,
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                    ),
+        return self.call(queries, schema=validate.Schema(
+            [
+                validate.all(
+                    {"data": {"userOrError": {
+                        "displayName": str,
+                    }}},
                 ),
-                validate.union_get(
-                    (1, "data", "user", "stream", "id"),
-                    (0, "data", "userOrError", "displayName"),
-                    (1, "data", "user", "stream", "game", "name"),
-                    (1, "data", "user", "lastBroadcast", "title"),
+                validate.all(
+                    {"data": {"user": {
+                        "lastBroadcast": {
+                            "title": str,
+                        },
+                        "stream": {
+                            "id": str,
+                            "game": validate.none_or_all({"name": str}),
+                        },
+                    }}},
                 ),
+            ],
+            validate.union_get(
+                (1, "data", "user", "stream", "id"),
+                (0, "data", "userOrError", "displayName"),
+                (1, "data", "user", "stream", "game"),
+                (1, "data", "user", "lastBroadcast", "title"),
             ),
-        )
+        ))
 
     def metadata_clips(self, clipname):
         queries = [
