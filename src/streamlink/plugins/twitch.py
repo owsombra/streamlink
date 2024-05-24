@@ -844,6 +844,8 @@ class Twitch(Plugin):
             else:  # pragma: no cover
                 return
             self.id, self.author, self.category, self.title = data
+            if isinstance(self.category, dict):
+                self.category = self.category.get("name")
             if self.id:
                 self.is_live = True
         except (PluginError, TypeError):
