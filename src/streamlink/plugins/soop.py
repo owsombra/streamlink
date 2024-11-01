@@ -262,7 +262,7 @@ class Soop(Plugin):
         self.save_cookies()
         return True
 
-    def _get_streams(self):
+    def _get_streams(self, live_check_only=False):
         login_username = self.get_option("username")
         login_password = self.get_option("password")
         stream_password = self.get_option("stream-password")
@@ -290,6 +290,9 @@ class Soop(Plugin):
         bno = self.match["bno"] or self._get_bno()
 
         result, self.id, self.author, self.title, rmd, cdn, bpwd, viewpreset = self._get_channel_info(channel, bno)
+        # TODO: broadcast start time
+        self.is_live = True
+        self.broadcast_start_time = None
         if result == self.CHANNEL_LOGIN_REQUIRED:
             log.error("Login required")
             return

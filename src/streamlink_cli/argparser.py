@@ -59,7 +59,7 @@ class ArgumentParser(argparse.ArgumentParser):
         match = self._RE_PRINTABLE.search(line)
         if not match:
             return
-        line = line[match.start() :].strip()
+        line = line[match.start():].strip()
 
         # Skip lines that do not start with a valid option (e.g. comments)
         option = self._RE_OPTION.match(line)
@@ -956,18 +956,6 @@ def build_parser():
             Automatically mux available subtitles into the output stream.
 
             Needs to be supported by the used plugin.
-        """,
-    )
-    transport.add_argument(
-        "--next-segment-num",
-        type=num(int, ge=0),
-        metavar="NUM",
-        help="""
-        Minimum segment number to download as the first segment.
-
-        This applies to all different kinds of segmented stream types, such as DASH, HLS, etc.
-
-        Default is 0.
         """,
     )
     transport.add_argument(
