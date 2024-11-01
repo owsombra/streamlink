@@ -59,7 +59,7 @@ class ArgumentParser(argparse.ArgumentParser):
         match = self._RE_PRINTABLE.search(line)
         if not match:
             return
-        line = line[match.start() :].strip()
+        line = line[match.start():].strip()
 
         # Skip lines that do not start with a valid option (e.g. comments)
         option = self._RE_OPTION.match(line)
