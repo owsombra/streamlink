@@ -136,6 +136,10 @@ Linux and BSD
       - See the `Linux AppImages`_ section below
     * - :octicon:`verified` Python pip
       - See the `PyPI package and source code`_ section below
+    * - :octicon:`package-dependents` `Alpine Linux (edge)`_
+      - .. code-block:: bash
+
+            sudo apk add streamlink
     * - :octicon:`package-dependents` `ALT Linux (Sisyphus)`_
       - .. code-block:: bash
 
@@ -195,6 +199,12 @@ Linux and BSD
       - .. code-block:: bash
 
             sudo zypper install streamlink
+    * - :octicon:`package-dependents` `Ubuntu`_
+      - Not recommended.
+
+        Ubuntu inherits the ``streamlink`` package from Debian, but doesn't maintain or update it.
+
+        See `Package availability`_.
     * - :octicon:`package-dependents` `Solus`_
       - .. code-block:: bash
 
@@ -204,6 +214,7 @@ Linux and BSD
 
             sudo xbps-install streamlink
 
+.. _Alpine Linux (edge): https://pkgs.alpinelinux.org/packages?name=streamlink
 .. _ALT Linux (Sisyphus): https://packages.altlinux.org/en/sisyphus/srpms/streamlink/
 .. _Arch Linux: https://archlinux.org/packages/extra/any/streamlink/
 .. _Arch Linux (aur, git): https://aur.archlinux.org/packages/streamlink-git/
@@ -215,6 +226,7 @@ Linux and BSD
 .. _Gentoo Linux: https://packages.gentoo.org/package/net-misc/streamlink
 .. _NixOS: https://github.com/NixOS/nixpkgs/tree/master/pkgs/applications/video/streamlink
 .. _openSUSE: https://build.opensuse.org/package/show/multimedia:apps/streamlink
+.. _Ubuntu: https://packages.ubuntu.com/noble/streamlink
 .. _Solus: https://github.com/getsolus/packages/tree/main/packages/s/streamlink
 .. _Void: https://github.com/void-linux/void-packages/tree/master/srcpkgs/streamlink
 
@@ -232,6 +244,8 @@ Package maintainers
 
     * - Distribution / Platform
       - Maintainer
+    * - Alpine Linux
+      - Hoang Nguyen <folliekazetani at protonmail.com>
     * - ALT Linux
       - Vitaly Lipatov <lav at altlinux.ru>
     * - Arch
@@ -430,7 +444,7 @@ Streamlink defines a `build system <pyproject.toml_>`__ according to `PEP-517`_ 
       - Notes
     * - python
       - `Python`_
-      - At least version **3.8**
+      - At least version **3.9**
     * - build
       - `setuptools`_
       - At least version **65.6.0** |br|
@@ -557,76 +571,36 @@ Windows binaries
     .. grid-item-card::
         :padding: 3
         :class-header: sd-text-center
-        :class-footer: sd-text-center sd-bg-transparent sd-border-0
+        :class-body: sd-py-0
+        :class-footer: sd-text-center sd-bg-transparent sd-border-0 sd-pt-0 sd-pb-3
 
         :fas:`gears` **Installer**
         ^^^
 
+        - Windows 10+
         - Adds itself to the system's ``PATH`` env var
         - Automatically creates a :ref:`config file <cli/config:Configuration file>`
         - Sets :option:`--ffmpeg-ffmpeg` in config file
 
         +++
-        .. grid:: 2
-            :gutter: 1
-            :padding: 0
-
-            .. grid-item::
-                :class: sd-text-right
-
-                Windows 10+
-
-            .. grid-item::
-
-                :bdg-link-success-line:`x86_64 <https://github.com/streamlink/windows-builds/releases>`
-                :bdg-link-primary-line:`x86 <https://github.com/streamlink/windows-builds/releases>`
-
-            .. grid-item::
-                :class: sd-text-right
-
-                Windows 7 (py38)
-
-            .. grid-item::
-
-                :bdg-link-secondary-line:`x86_64 <https://github.com/streamlink/windows-builds/releases>`
-                :bdg-link-secondary-line:`x86 <https://github.com/streamlink/windows-builds/releases>`
+        :bdg-link-success-line:`x86_64 <https://github.com/streamlink/windows-builds/releases>`
 
     .. grid-item-card::
         :padding: 3
         :class-header: sd-text-center
-        :class-footer: sd-text-center sd-bg-transparent sd-border-0
+        :class-body: sd-py-0
+        :class-footer: sd-text-center sd-bg-transparent sd-border-0 sd-pt-0 sd-pb-3
 
         :fas:`file-zipper` **Portable archive**
         ^^^
 
+        - Windows 10+
         - No :ref:`config file <cli/config:Configuration file>` created automatically
         - :option:`--ffmpeg-ffmpeg` must be set manually
         - No pre-compiled Python bytecode
 
         +++
-        .. grid:: 2
-            :gutter: 1
-            :padding: 0
-
-            .. grid-item::
-                :class: sd-text-right
-
-                Windows 10+
-
-            .. grid-item::
-
-                :bdg-link-success-line:`x86_64 <https://github.com/streamlink/windows-builds/releases>`
-                :bdg-link-primary-line:`x86 <https://github.com/streamlink/windows-builds/releases>`
-
-            .. grid-item::
-                :class: sd-text-right
-
-                Windows 7 (py38)
-
-            .. grid-item::
-
-                :bdg-link-secondary-line:`x86_64 <https://github.com/streamlink/windows-builds/releases>`
-                :bdg-link-secondary-line:`x86 <https://github.com/streamlink/windows-builds/releases>`
+        :bdg-link-success-line:`x86_64 <https://github.com/streamlink/windows-builds/releases>`
 
 **Contents**
 
@@ -701,7 +675,7 @@ Linux AppImages
 
 **Architectures**
 
-.. grid:: 3
+.. grid:: 2
     :padding: 0
 
     .. grid-item-card::
@@ -715,12 +689,6 @@ Linux AppImages
         :text-align: center
 
         :bdg-link-success-line:`aarch64 <https://github.com/streamlink/streamlink-appimage/releases>`
-
-    .. grid-item-card::
-        :padding: 3
-        :text-align: center
-
-        :bdg-link-primary-line:`i686 <https://github.com/streamlink/streamlink-appimage/releases>`
 
 **Contents**
 
@@ -752,20 +720,27 @@ Linux AppImages
 
 **How-To**
 
-1. Download the AppImage file matching your CPU architecture (run :command:`uname -m` to check)
+1. Verify that the system is running on at least
+   `glibc <glibc-wikipedia_>`_ `2.28 (Aug 2018) <glibc-release-distro-mapping_>`_ (see :command:`ld.so --version`)
 
-2. Set the executable flag via a file browser or :command:`chmod +x filename` from a command-line shell
+2. Download the AppImage file matching the system's CPU architecture (see :command:`uname --machine`)
 
-   .. code-block:: bash
-
-      # AppImage file names include the release version, Python version, platform name and CPU architecture
-      chmod +x streamlink-5.3.0-1-cp311-cp311-manylinux2014_x86_64.AppImage
-
-3. Run the AppImage with any command-line parameters supported by Streamlink
+3. Set the executable flag via a file browser or :command:`chmod +x filename` from a command-line shell
 
    .. code-block:: bash
 
-      ./streamlink-5.3.0-1-cp311-cp311-manylinux2014_x86_64.AppImage --loglevel=debug
+      # AppImage file names include the release version,
+      # the Python version, platform name and CPU architecture
+      chmod +x streamlink-7.0.0-1-cp312-cp312-manylinux_2_28_x86_64.AppImage
+
+4. Run the AppImage with any command-line parameters supported by Streamlink
+
+   .. code-block:: bash
+
+      ./streamlink-7.0.0-1-cp312-cp312-manylinux_2_28_x86_64.AppImage --loglevel=debug
+
+.. _glibc-wikipedia: https://en.wikipedia.org/wiki/Glibc
+.. _glibc-release-distro-mapping: https://sourceware.org/glibc/wiki/Release#Distribution_Branch_Mapping
 
 
 What are AppImages?

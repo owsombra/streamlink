@@ -1,8 +1,18 @@
+from __future__ import annotations
+
 import logging
 import warnings
+from collections.abc import Mapping
 from functools import lru_cache
+<<<<<<< HEAD
+from typing import Any
+=======
 from typing import Any, Dict, Optional, Tuple, Type
 from datetime import datetime
+<<<<<<< HEAD
+=======
+>>>>>>> 6ec5f59c (Delete: unnecessary plugins & Add: AfreecaTV broadcast start time tracking logic (Not precise way))
+>>>>>>> streamlink-master
 
 import streamlink.compat  # noqa: F401
 from streamlink import __version__
@@ -29,7 +39,7 @@ class Streamlink:
 
     def __init__(
         self,
-        options: Optional[Dict[str, Any]] = None,
+        options: Mapping[str, Any] | None = None,
         *,
         plugins_builtin: bool = True,
         plugins_lazy: bool = True,
@@ -106,7 +116,7 @@ class Streamlink:
         self,
         url: str,
         follow_redirect: bool = True,
-    ) -> Tuple[str, Type[Plugin], str]:
+    ) -> tuple[str, type[Plugin], str]:
         """
         Attempts to find a plugin that can use this URL.
 
@@ -139,7 +149,7 @@ class Streamlink:
 
         raise NoPluginError
 
-    def resolve_url_no_redirect(self, url: str) -> Tuple[str, Type[Plugin], str]:
+    def resolve_url_no_redirect(self, url: str) -> tuple[str, type[Plugin], str]:
         """
         Attempts to find a plugin that can use this URL.
 
@@ -151,7 +161,7 @@ class Streamlink:
 
         return self.resolve_url(url, follow_redirect=False)
 
-    def streams(self, url: str, options: Optional[Options] = None, **params):
+    def streams(self, url: str, options: Options | None = None, **params):
         """
         Attempts to find a plugin and extracts streams from the *url* if a plugin was found.
 

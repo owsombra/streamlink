@@ -2,12 +2,12 @@
 $description Global live-streaming and video hosting social platform owned by Google.
 $url youtube.com
 $url youtu.be
-$type live, vod
+$type live
 $metadata id
 $metadata author
 $metadata category
 $metadata title
-$notes Protected videos are not supported
+$notes VOD content and protected videos are not supported
 """
 
 import json
@@ -29,18 +29,30 @@ from streamlink.utils.parse import parse_json
 log = logging.getLogger(__name__)
 
 
-@pluginmatcher(name="default", pattern=re.compile(
-    r"https?://(?:\w+\.)?youtube\.com/(?:v/|live/|watch\?(?:.*&)?v=)(?P<video_id>[\w-]{11})",
-))
-@pluginmatcher(name="channel", pattern=re.compile(
-    r"https?://(?:\w+\.)?youtube\.com/(?:@|c(?:hannel)?/|user/)?(?P<channel>[^/?]+)(?P<live>/live)?/?$",
-))
-@pluginmatcher(name="embed", pattern=re.compile(
-    r"https?://(?:\w+\.)?youtube\.com/embed/(?:live_stream\?channel=(?P<live>[^/?&]+)|(?P<video_id>[\w-]{11}))",
-))
-@pluginmatcher(name="shorthand", pattern=re.compile(
-    r"https?://youtu\.be/(?P<video_id>[\w-]{11})",
-))
+@pluginmatcher(
+    name="default",
+    pattern=re.compile(
+        r"https?://(?:\w+\.)?youtube\.com/(?:v/|live/|watch\?(?:.*&)?v=)(?P<video_id>[\w-]{11})",
+    ),
+)
+@pluginmatcher(
+    name="channel",
+    pattern=re.compile(
+        r"https?://(?:\w+\.)?youtube\.com/(?:@|c(?:hannel)?/|user/)?(?P<channel>[^/?]+)(?P<live>/live)?/?$",
+    ),
+)
+@pluginmatcher(
+    name="embed",
+    pattern=re.compile(
+        r"https?://(?:\w+\.)?youtube\.com/embed/(?:live_stream\?channel=(?P<live>[^/?&]+)|(?P<video_id>[\w-]{11}))",
+    ),
+)
+@pluginmatcher(
+    name="shorthand",
+    pattern=re.compile(
+        r"https?://youtu\.be/(?P<video_id>[\w-]{11})",
+    ),
+)
 class YouTube(Plugin):
     _re_ytInitialData = re.compile(r"""var\s+ytInitialData\s*=\s*({.*?})\s*;\s*</script>""", re.DOTALL)
     _re_ytInitialPlayerResponse = re.compile(
@@ -144,10 +156,12 @@ class YouTube(Plugin):
     @classmethod
     def _schema_playabilitystatus(cls, data):
         schema = validate.Schema(
-            {"playabilityStatus": {
-                "status": str,
-                validate.optional("reason"): validate.any(str, None),
-            }},
+            {
+                "playabilityStatus": {
+                    "status": str,
+                    validate.optional("reason"): validate.any(str, None),
+                },
+            },
             validate.get("playabilityStatus"),
             validate.union_get("status", "reason"),
         )
@@ -257,6 +271,12 @@ class YouTube(Plugin):
                 if best_audio_itag is None or audio_bitrate > self.adp_audio[best_audio_itag]:
                     best_audio_itag = itag
 
+        if (
+            not best_audio_itag
+            or self.session.http.head(adaptive_streams[best_audio_itag], raise_for_status=False).status_code >= 400
+        ):
+            return {}
+
         streams.update({
             f"audio_{stream_codec}": HTTPStream(self.session, adaptive_streams[itag])
             for stream_codec, itag in audio_streams.items()
@@ -284,7 +304,7 @@ class YouTube(Plugin):
             c_data = {
                 elem.attrib.get("name"): elem.attrib.get("value")
                 for elem in elems
-            }
+            }  # fmt: skip
             log.debug(f"consent target: {target}")
             log.debug(f"consent data: {', '.join(c_data.keys())}")
             res = self.session.http.post(target, data=c_data)
@@ -391,13 +411,15 @@ class YouTube(Plugin):
             return streams
         hls_manifest, dash_manifest, formats, adaptive_formats = self._schema_streamingdata(data)
 
-        protected = next((True for url, *_ in formats + adaptive_formats if url is None), False)
+        protected = any(url is None for url, *_ in formats + adaptive_formats)
         if protected:
             log.debug("This video may be protected.")
 
         for url, label in formats:
             if url is None:
                 continue
+            if self.session.http.head(url, raise_for_status=False).status_code >= 400:
+                break
             streams[label] = HTTPStream(self.session, url)
 
         if not self.is_live:
@@ -411,6 +433,11 @@ class YouTube(Plugin):
 
         if not streams and protected:
             raise PluginError("This plugin does not support protected videos, try youtube-dl instead")
+        if not streams:
+            if protected:
+                raise PluginError("This plugin does not support protected videos, try yt-dlp instead")
+            if formats or adaptive_formats:
+                raise PluginError("This plugin does not support VOD content, try yt-dlp instead")
 
         return streams
 
