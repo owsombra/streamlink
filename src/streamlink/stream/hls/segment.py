@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 
 from streamlink.stream.segmented.segment import Segment
 
