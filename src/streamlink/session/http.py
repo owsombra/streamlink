@@ -189,6 +189,9 @@ class HTTPSession(Session):
                     proxies=proxies,
                     **kwargs,
                 )
+                if res.status_code != 200:
+                    log.warning(
+                        f'HTTP request failed - Response code: {res.status_code}.\n Response headers: {res.headers}.\n Request headers: {res.request.headers}.')
                 if raise_for_status and res.status_code not in acceptable_status:
                     res.raise_for_status()
                 break

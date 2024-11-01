@@ -6,7 +6,7 @@ import struct
 from collections.abc import Mapping
 from concurrent.futures import Future
 from datetime import datetime, timedelta
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Optional
 from urllib.parse import urlparse
 
 from requests import Response
@@ -368,13 +368,13 @@ class HLSStreamWorker(SegmentedStreamWorker[HLSSegment, Response]):
         if self.playlist_reload_time_override == "segment" and playlist.segments:
             return playlist.segments[-1].duration
         if self.playlist_reload_time_override == "live-edge" and playlist.segments:
-            return sum(s.duration for s in playlist.segments[-max(1, self.live_edge - 1) :])
+            return sum(s.duration for s in playlist.segments[-max(1, self.live_edge - 1):])
         if type(self.playlist_reload_time_override) is float and self.playlist_reload_time_override > 0:
             return self.playlist_reload_time_override
         if playlist.targetduration:
             return playlist.targetduration
         if playlist.segments:
-            return sum(s.duration for s in playlist.segments[-max(1, self.live_edge - 1) :])
+            return sum(s.duration for s in playlist.segments[-max(1, self.live_edge - 1):])
 
         return self.playlist_reload_time
 

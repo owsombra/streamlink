@@ -324,6 +324,12 @@ class MPD(MPDNode):
             # required=self.type == "dynamic",
             default=self.availabilityStartTime,
         )
+        self.publishTime = self.attr(
+            "publishTime",
+            parser=MPDParsers.datetime,
+            # required=self.type == "dynamic",
+            default=self.availabilityStartTime,
+        )
         self.availabilityEndTime = self.attr(
             "availabilityEndTime",
             parser=MPDParsers.datetime,
@@ -752,7 +758,7 @@ class SegmentList(_MultipleSegmentBaseType):
             else:
                 # yield a specific number of segments from the live-edge of dynamic manifests
                 start_number = self.calculate_optimal_start()
-                segment_urls = self.segmentURLs[start_number - self.startNumber :]
+                segment_urls = self.segmentURLs[start_number - self.startNumber:]
 
         else:
             # skip segments with a lower number than the remembered segment number

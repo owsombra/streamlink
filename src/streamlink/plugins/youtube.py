@@ -20,7 +20,7 @@ from streamlink.plugin import Plugin, PluginError, pluginmatcher
 from streamlink.plugin.api import useragents, validate
 from streamlink.stream.ffmpegmux import MuxedStream
 from streamlink.stream.hls import HLSStream
-# from streamlink.stream.dash import DASHStream
+from streamlink.stream.dash import DASHStream
 from streamlink.stream.http import HTTPStream
 from streamlink.utils.data import search_dict
 from streamlink.utils.parse import parse_json
@@ -214,38 +214,32 @@ class YouTube(Plugin):
     @classmethod
     def _schema_streamingdata(cls, data):
         schema = validate.Schema(
-            {
-                "streamingData": {
-                    validate.optional("hlsManifestUrl"): str,
-                    validate.optional("formats"): [
-                        validate.all(
-                            {
-                                "itag": int,
-                                "qualityLabel": str,
-                                validate.optional("url"): validate.url(scheme="http"),
-                            },
-                            validate.union_get("url", "qualityLabel"),
+            {"streamingData": {
+                validate.optional("dashManifestUrl"): str,
+                validate.optional("hlsManifestUrl"): str,
+                validate.optional("formats"): [validate.all(
+                    {
+                        "itag": int,
+                        "qualityLabel": str,
+                        validate.optional("url"): validate.url(scheme="http"),
+                    },
+                    validate.union_get("url", "qualityLabel"),
+                )],
+                validate.optional("adaptiveFormats"): [validate.all(
+                    {
+                        "itag": int,
+                        "mimeType": validate.all(
+                            str,
+                            validate.regex(re.compile(
+                                r"""^(?P<type>\w+)/(?P<container>\w+); codecs="(?P<codecs>.+)"$""")),
+                            validate.union_get("type", "codecs"),
                         ),
-                    ],
-                    validate.optional("adaptiveFormats"): [
-                        validate.all(
-                            {
-                                "itag": int,
-                                "mimeType": validate.all(
-                                    str,
-                                    validate.regex(
-                                        re.compile(r"""^(?P<type>\w+)/(?P<container>\w+); codecs="(?P<codecs>.+)"$"""),
-                                    ),
-                                    validate.union_get("type", "codecs"),
-                                ),
-                                validate.optional("url"): validate.url(scheme="http"),
-                                validate.optional("qualityLabel"): str,
-                            },
-                            validate.union_get("url", "qualityLabel", "itag", "mimeType"),
-                        ),
-                    ],
-                },
-            },
+                        validate.optional("url"): validate.url(scheme="http"),
+                        validate.optional("qualityLabel"): str,
+                    },
+                    validate.union_get("url", "qualityLabel", "itag", "mimeType"),
+                )],
+            }},
             validate.get("streamingData"),
             validate.union_get("hlsManifestUrl", "dashManifestUrl", "formats", "adaptiveFormats"),
         )
@@ -434,6 +428,11 @@ class YouTube(Plugin):
         if hls_manifest:
             streams.update(HLSStream.parse_variant_playlist(self.session, hls_manifest, name_key="pixels"))
 
+        # if dash_manifest:
+        #     streams.update(DASHStream.parse_manifest(self.session, dash_manifest))
+
+        if not streams and protected:
+            raise PluginError("This plugin does not support protected videos, try youtube-dl instead")
         if not streams:
             if protected:
                 raise PluginError("This plugin does not support protected videos, try yt-dlp instead")
