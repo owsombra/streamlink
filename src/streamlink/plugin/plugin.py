@@ -10,7 +10,7 @@ from contextlib import suppress
 from datetime import datetime
 from functools import partial
 from http.cookiejar import Cookie
-from typing import TYPE_CHECKING, Any, ClassVar, List, Literal, NamedTuple, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, ClassVar, List, Literal, NamedTuple, Type, TypeVar, Union, Optional
 
 import requests.cookies
 

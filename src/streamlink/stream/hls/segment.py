@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 
 from streamlink.stream.segmented.segment import Segment
 
@@ -104,13 +104,7 @@ class HLSSegment(Segment):
     title: str | None
     key: Key | None
     discontinuity: bool
-<<<<<<< HEAD
-    byterange: ByteRange | None
-    date: datetime | None
-    map: Map | None
-=======
     byterange: Optional[ByteRange]
     date: Optional[datetime]
     offset: Optional[timedelta]
     map: Optional[Map]
->>>>>>> 6ec5f59c (Delete: unnecessary plugins & Add: AfreecaTV broadcast start time tracking logic (Not precise way))

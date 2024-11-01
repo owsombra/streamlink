@@ -6,7 +6,7 @@ import re
 from binascii import Error as BinasciiError, unhexlify
 from collections.abc import Callable, Iterator, Mapping
 from datetime import datetime, timedelta
-from typing import ClassVar, Generic, TypeVar
+from typing import ClassVar, Generic, TypeVar, Optional
 from urllib.parse import urljoin, urlparse
 
 from isodate import ISO8601Error, parse_datetime  # type: ignore[import]
@@ -154,19 +154,10 @@ class M3U8Parser(Generic[TM3U8_co, THLSSegment_co, THLSPlaylist_co], metaclass=M
         self._extinf: ExtInf | None = None
         self._byterange: ByteRange | None = None
         self._discontinuity: bool = False
-<<<<<<< HEAD
-        self._map: Map | None = None
-        self._key: Key | None = None
-        self._date: datetime | None = None
-=======
         self._map: Optional[Map] = None
         self._key: Optional[Key] = None
         self._date: Optional[datetime] = None
         self._offset: Optional[timedelta] = None
-<<<<<<< HEAD
-=======
->>>>>>> 6ec5f59c (Delete: unnecessary plugins & Add: AfreecaTV broadcast start time tracking logic (Not precise way))
->>>>>>> streamlink-master
 
     @classmethod
     def create_stream_info(cls, streaminf: Mapping[str, str | None], streaminfoclass=None):

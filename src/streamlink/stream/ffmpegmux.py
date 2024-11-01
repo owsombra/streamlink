@@ -85,10 +85,7 @@ class MuxedStream(Stream, Generic[TSubstreams]):
 class FFMPEGMuxer(StreamIO):
     __commands__: ClassVar[list[str]] = ["ffmpeg"]
 
-<<<<<<< HEAD
-=======
     DEFAULT_LOGLEVEL = "info"
->>>>>>> streamlink-master
     DEFAULT_OUTPUT_FORMAT = "mpegts"
     DEFAULT_VIDEO_CODEC = "copy"
     DEFAULT_AUDIO_CODEC = "copy"
