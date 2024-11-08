@@ -290,9 +290,7 @@ class Soop(Plugin):
         bno = self.match["bno"] or self._get_bno()
 
         result, self.id, self.author, self.title, rmd, cdn, bpwd, viewpreset = self._get_channel_info(channel, bno)
-        # TODO: broadcast start time
-        self.is_live = True
-        self.broadcast_start_time = None
+
         if result == self.CHANNEL_LOGIN_REQUIRED:
             log.error("Login required")
             return
@@ -300,6 +298,12 @@ class Soop(Plugin):
             return
 
         if not self.id or not rmd:
+            return
+
+        # TODO: broadcast start time
+        self.is_live = True
+        self.broadcast_start_time = None
+        if live_check_only:
             return
 
         streams = {}

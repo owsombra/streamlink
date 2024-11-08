@@ -431,8 +431,6 @@ class YouTube(Plugin):
         # if dash_manifest:
         #     streams.update(DASHStream.parse_manifest(self.session, dash_manifest))
 
-        if not streams and protected:
-            raise PluginError("This plugin does not support protected videos, try youtube-dl instead")
         if not streams:
             if protected:
                 raise PluginError("This plugin does not support protected videos, try yt-dlp instead")
