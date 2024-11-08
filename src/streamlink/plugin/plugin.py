@@ -268,12 +268,12 @@ class Plugin(metaclass=PluginMeta):
     #: Supports matcher lookups by the matcher index or the optional matcher name.
     #:
     #: Use the :func:`pluginmatcher` decorator to initialize plugin matchers.
-    matchers: ClassVar[Matchers]
+    matchers: ClassVar[Matchers | None] = None
 
     #: The plugin's :class:`Arguments <streamlink.options.Arguments>` collection.
     #:
     #: Use the :func:`pluginargument` decorator to initialize plugin arguments.
-    arguments: ClassVar[Arguments]
+    arguments: ClassVar[Arguments | None] = None
 
     #: A list of optional :class:`re.Match` results of all defined matchers.
     #: Supports match lookups by the matcher index or the optional matcher name.
