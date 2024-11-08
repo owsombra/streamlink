@@ -93,8 +93,8 @@ class TwitchM3U8Parser(M3U8Parser[TwitchM3U8, TwitchHLSSegment, HLSPlaylist]):
         # Use the average duration of all regular segments for the duration of prefetch segments.
         # This is better than using the duration of the last segment when regular segment durations vary a lot.
         # In low latency mode, the playlist reload time is the duration of the last segment.
-        duration = last.duration if last.prefetch else sum(
-            segment.duration for segment in segments) / float(len(segments))
+        duration = last.duration if last.prefetch else sum(segment.duration for segment in segments) / float(len(segments))
+
         # Use the last duration for extrapolating the start time of the prefetch segment, which is needed for checking
         # whether it is an ad segment and matches the parsed date ranges or not
         date = last.date + timedelta(seconds=last.duration)
@@ -402,32 +402,43 @@ class TwitchAPI:
             ),
         ]
 
-        return self.call(queries, schema=validate.Schema(
-            [
-                validate.all(
-                    {"data": {"userOrError": {
-                        "displayName": str,
-                    }}},
-                ),
-                validate.all(
-                    {"data": {"user": {
-                        "lastBroadcast": {
-                            "title": str,
+        return self.call(
+            queries,
+            schema=validate.Schema(
+                [
+                    validate.all(
+                        {
+                            "data": {
+                                "userOrError": {
+                                    "displayName": str,
+                                },
+                            },
                         },
-                        "stream": {
-                            "id": str,
-                            "game": validate.none_or_all({"name": str}),
+                    ),
+                    validate.all(
+                        {
+                            "data": {
+                                "user": {
+                                    "lastBroadcast": {
+                                        "title": str,
+                                    },
+                                    "stream": {
+                                        "id": str,
+                                        "game": validate.none_or_all({"name": str}),
+                                    },
+                                },
+                            },
                         },
-                    }}},
+                    ),
+                ],
+                validate.union_get(
+                    (1, "data", "user", "stream", "id"),
+                    (0, "data", "userOrError", "displayName"),
+                    (1, "data", "user", "stream", "game"),
+                    (1, "data", "user", "lastBroadcast", "title"),
                 ),
-            ],
-            validate.union_get(
-                (1, "data", "user", "stream", "id"),
-                (0, "data", "userOrError", "displayName"),
-                (1, "data", "user", "stream", "game"),
-                (1, "data", "user", "lastBroadcast", "title"),
             ),
-        ))
+        )
 
     def metadata_clips(self, clipname):
         queries = [
@@ -778,27 +789,21 @@ class Twitch(Plugin):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        match = self.match.groupdict()
-        parsed = urlparse(self.url)
-        self.params = parse_qsd(parsed.query)
-        self.subdomain = match.get("subdomain")
-        self.video_id = None
-        self.channel = None
-        self.clip_name = None
-        self._checked_metadata = False
 
-        if self.subdomain == "player":
-            # pop-out player
-            if self.params.get("video"):
-                self.video_id = self.params["video"]
-            self.channel = self.params.get("channel")
-        elif self.subdomain == "clips":
-            # clip share URL
-            self.clip_name = match.get("channel")
-        else:
-            self.channel = match.get("channel") and match.get("channel").lower()
-            self.video_id = match.get("video_id") or match.get("videos_id")
-            self.clip_name = match.get("clip_name")
+        params = parse_qsd(urlparse(self.url).query)
+
+        self.channel = self.match["channel"] if self.matches["live"] else None
+        self.video_id = self.match["video_id"] if self.matches["vod"] else None
+        self.clip_id = self.match["clip_id"] if self.matches["clip"] else None
+
+        if self.matches["player"]:
+            self.channel = params.get("channel")
+            self.video_id = params.get("video")
+
+        try:
+            self.time_offset = hours_minutes_seconds_float(params.get("t", "0"))
+        except ValueError:
+            self.time_offset = 0
 
         self.api = TwitchAPI(
             session=self.session,
