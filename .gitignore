@@ -57,3 +57,6 @@ htmlcov
 
 # test files
 __test__*
+
+# pyenv
+.python-version

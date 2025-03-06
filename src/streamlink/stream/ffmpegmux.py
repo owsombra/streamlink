@@ -164,13 +164,14 @@ class FFMPEGMuxer(StreamIO):
             pipe.close()
 
     def __init__(self, session, *streams, **options):
-        if not self.is_usable(session):
-            raise StreamError("cannot use FFMPEG")
-
         self.session = session
         self.process = None
-        self.streams = streams
+        self.errorlog = subprocess.DEVNULL
 
+        if not self.is_usable(session):
+            raise StreamError("Cannot use FFmpeg")
+
+        self.streams = streams
         self.pipes = [NamedPipe() for _ in self.streams]
         self.pipe_threads = [
             threading.Thread(
@@ -218,14 +219,12 @@ class FFMPEGMuxer(StreamIO):
                 self._cmd.extend(["-metadata{0}".format(stream_id), datum])
 
         self._cmd.extend(["-f", ofmt, outpath])
-        log.debug("ffmpeg command: {0}".format(" ".join(self._cmd)))
+        log.debug(f"ffmpeg command: {self._cmd!r}")
 
         if session.options.get("ffmpeg-verbose-path"):
             self.errorlog = Path(session.options.get("ffmpeg-verbose-path")).expanduser().open("w")
         elif session.options.get("ffmpeg-verbose"):
             self.errorlog = sys.stderr
-        else:
-            self.errorlog = subprocess.DEVNULL
 
     def open(self):
         for t in self.pipe_threads:

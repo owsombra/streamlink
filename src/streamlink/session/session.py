@@ -32,7 +32,7 @@ class Streamlink:
 
     def __init__(
         self,
-        options: Mapping[str, Any] | None = None,
+        options: Mapping[str, Any] | Options | None = None,
         *,
         plugins_builtin: bool = True,
         plugins_lazy: bool = True,
@@ -119,7 +119,8 @@ class Streamlink:
 
         :param url: a URL to match against loaded plugins
         :param follow_redirect: follow redirects
-        :raises NoPluginError: on plugin resolve failure
+        :raise NoPluginError: on plugin resolve failure
+        :return: A tuple of plugin name, plugin class and resolved URL
         """
 
         url = update_scheme("https://", url, force=False)
@@ -149,7 +150,8 @@ class Streamlink:
         The default protocol (https) will be prefixed to the URL if not specified.
 
         :param url: a URL to match against loaded plugins
-        :raises NoPluginError: on plugin resolve failure
+        :raise NoPluginError: on plugin resolve failure
+        :return: A tuple of plugin name, plugin class and resolved URL
         """
 
         return self.resolve_url(url, follow_redirect=False)
