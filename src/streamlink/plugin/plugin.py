@@ -7,16 +7,14 @@ import re
 import time
 from collections.abc import Callable, Iterable, Mapping
 from contextlib import suppress
-from datetime import datetime
 from functools import partial
 from http.cookiejar import Cookie
-from typing import TYPE_CHECKING, Any, ClassVar, List, Literal, NamedTuple, Type, TypeVar, Union, Optional
+from typing import TYPE_CHECKING, Any, ClassVar, List, Literal, NamedTuple, Type, TypeVar, Union
 
 import requests.cookies
 
 import streamlink.utils.args
 import streamlink.utils.times
-from streamlink.session.http import HTTPSession
 from streamlink.cache import Cache
 from streamlink.exceptions import FatalPluginError, NoStreamsError, PluginError
 from streamlink.options import Argument, Arguments, Options
@@ -205,8 +203,8 @@ MType = TypeVar("MType")
 
 
 class _MCollection(List[MType]):
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self._names: dict[str, MType] = {}
 
     def __getitem__(self, item):
@@ -214,8 +212,16 @@ class _MCollection(List[MType]):
 
 
 class Matchers(_MCollection[Matcher]):
-    def register(self, matcher: Matcher) -> None:
+    def __init__(self, *matchers):
+        super().__init__(matchers)
+        for matcher in matchers:
+            self._add_named_matcher(matcher)
+
+    def add(self, matcher: Matcher) -> None:
         super().insert(0, matcher)
+        self._add_named_matcher(matcher)
+
+    def _add_named_matcher(self, matcher: Matcher) -> None:
         if matcher.name:
             if matcher.name in self._names:
                 raise ValueError(f"A matcher named '{matcher.name}' has already been registered")
@@ -234,7 +240,14 @@ class Matches(_MCollection[Union[re.Match, None]]):
         return next(((matcher.pattern, match) for matcher, match in matches if match is not None), (None, None))
 
 
-class Plugin:
+class PluginMeta(type):
+    def __init__(cls, name, bases, namespace, **kwargs):
+        super().__init__(name, bases, namespace, **kwargs)
+        cls.matchers = Matchers(*getattr(cls, "matchers", []))
+        cls.arguments = Arguments(*getattr(cls, "arguments", []))
+
+
+class Plugin(metaclass=PluginMeta):
     """
     Plugin base class for retrieving streams and metadata from the URL specified.
     """
@@ -253,12 +266,12 @@ class Plugin:
     #: Supports matcher lookups by the matcher index or the optional matcher name.
     #:
     #: Use the :func:`pluginmatcher` decorator to initialize plugin matchers.
-    matchers: ClassVar[Matchers | None] = None
+    matchers: ClassVar[Matchers]
 
     #: The plugin's :class:`Arguments <streamlink.options.Arguments>` collection.
     #:
     #: Use the :func:`pluginargument` decorator to initialize plugin arguments.
-    arguments: ClassVar[Arguments | None] = None
+    arguments: ClassVar[Arguments]
 
     #: A list of optional :class:`re.Match` results of all defined matchers.
     #: Supports match lookups by the matcher index or the optional matcher name.
@@ -278,14 +291,10 @@ class Plugin:
     author: str | None = None
     #: Metadata 'category' attribute: name of a game being played, a music genre, etc.
     category: str | None = None
-    #: Metadata 'is_live' attribute: whether the stream is live.
-    is_live: bool = False
-    #: Metadata 'broadcast_start_time' attribute: Broadcast start time.
-    broadcast_start_time: Optional[datetime] = None
 
     _url: str = ""
 
-    def __init__(self, session: Streamlink, url: str, options: Options | None = None):
+    def __init__(self, session: Streamlink, url: str, options: Mapping[str, Any] | Options | None = None):
         """
         :param session: The Streamlink session instance
         :param url: The input URL used for finding and resolving streams
@@ -295,7 +304,9 @@ class Plugin:
         modulename = self.__class__.__module__
         self.module = modulename.split(".")[-1]
         self.logger = logging.getLogger(modulename)
-        self.options = Options() if options is None else options
+
+        self.options = Options(options)
+
         self.cache = Cache(
             filename="plugin-cache.json",
             key_prefix=self.module,
@@ -349,7 +360,7 @@ class Plugin:
 
         return stream_types
 
-    def streams(self, live_check_only=False, stream_types=None, sorting_excludes=None):
+    def streams(self, stream_types=None, sorting_excludes=None):
         """
         Attempts to extract available streams.
 
@@ -385,13 +396,7 @@ class Plugin:
         """
 
         try:
-            ostreams = self._get_streams(live_check_only)
-
-            # Reset the http connection for the re-use to other platforms if live check only.
-            if live_check_only:
-                self.session.http.close()
-                self.session.http = HTTPSession()
-
+            ostreams = self._get_streams()
             if isinstance(ostreams, dict):
                 ostreams = ostreams.items()
 
@@ -441,7 +446,7 @@ class Plugin:
                         name = "{0}{1}".format(name, num_alts + 1)
 
             # Validate stream name and discard the stream if it's bad.
-            match = re.match("([A-z0-9_+]+)", name)
+            match = re.match(r"([A-z0-9_+]+)", name)
             if match:
                 name = match.group(1)
             else:
@@ -484,7 +489,7 @@ class Plugin:
 
         return final_sorted_streams
 
-    def _get_streams(self, live_check_only=False):
+    def _get_streams(self):
         """
         Implement the stream and metadata retrieval here.
 
@@ -515,9 +520,6 @@ class Plugin:
     def get_category(self) -> str | None:
         return None if self.category is None else str(self.category).strip()
 
-    def get_is_live(self) -> bool:
-        return self.is_live
-
     def save_cookies(
         self,
         cookie_filter: Callable[[Cookie], bool] | None = None,
@@ -536,7 +538,10 @@ class Plugin:
         cookie_filter = cookie_filter or (lambda c: True)
         saved = []
 
-        for cookie in filter(cookie_filter, self.session.http.cookies):
+        for cookie in self.session.http.cookies:
+            if not cookie_filter(cookie):
+                continue
+
             cookie_dict = {}
             for key in _COOKIE_KEYS:
                 cookie_dict[key] = getattr(cookie, key, None)
@@ -666,9 +671,7 @@ def pluginmatcher(
     def decorator(cls: type[Plugin]) -> type[Plugin]:
         if not issubclass(cls, Plugin):
             raise TypeError(f"{cls.__name__} is not a Plugin")
-        if cls.matchers is None:
-            cls.matchers = Matchers()
-        cls.matchers.register(matcher)
+        cls.matchers.add(matcher)
 
         return cls
 
@@ -733,15 +736,15 @@ def pluginargument(
     assuming the plugin's module name is ``myplugin``.
     """
 
-    _type: Callable[[Any], _TChoices] | None
+    argument_type: Callable[[Any], _TChoices] | None
     if not isinstance(type, str):
-        _type = type
+        argument_type = type
     else:
         if type not in _PLUGINARGUMENT_TYPE_REGISTRY:
             raise TypeError(f"Invalid pluginargument type {type}")
-        _type = _PLUGINARGUMENT_TYPE_REGISTRY[type]
+        argument_type = _PLUGINARGUMENT_TYPE_REGISTRY[type]
         if type_args is not None or type_kwargs is not None:
-            _type = _type(*(type_args or ()), **(type_kwargs or {}))
+            argument_type = argument_type(*(type_args or ()), **(type_kwargs or {}))
 
     arg = Argument(
         name=name,
@@ -749,7 +752,7 @@ def pluginargument(
         nargs=nargs,
         const=const,
         default=default,
-        type=_type,
+        type=argument_type,
         choices=choices,
         required=required,
         help=help,
@@ -764,8 +767,6 @@ def pluginargument(
     def decorator(cls: Type[Plugin]) -> Type[Plugin]:
         if not issubclass(cls, Plugin):
             raise TypeError(f"{repr(cls)} is not a Plugin")  # noqa: RUF010  # builtins.repr gets monkeypatched in tests
-        if cls.arguments is None:
-            cls.arguments = Arguments()
         cls.arguments.add(arg)
 
         return cls
