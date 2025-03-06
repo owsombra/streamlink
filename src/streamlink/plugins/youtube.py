@@ -318,7 +318,7 @@ class YouTube(Plugin):
             return
         return parse_json(match.group(1))
 
-     def _get_data_from_api(self, res):
+    def _get_data_from_api(self, res):
         try:
             video_id = self.match["video_id"]
         except IndexError:
