@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import socket
 import warnings
 from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
-from socket import AF_INET, AF_INET6
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import urllib3.util.connection as urllib3_util_connection
@@ -67,7 +67,7 @@ class StreamlinkOptions(Options):
         * - interface
           - ``str | None``
           - ``None``
-          - Network interface address
+          - Network interface name
         * - ipv4
           - ``bool``
           - ``False``
@@ -350,9 +350,6 @@ class StreamlinkOptions(Options):
     def _get_http_attr(self, key):
         return getattr(self.session.http, self._OPTIONS_HTTP_ATTRS[key])
 
-    def _get_m3u8_proxy(self, key):
-        return self.session.http.proxies.get("m3u8-proxy")
-
     # ---- setters
 
     def _set_interface(self, key, value):
@@ -360,10 +357,11 @@ class StreamlinkOptions(Options):
             if not isinstance(adapter, HTTPAdapter):
                 continue
             if not value:
-                adapter.poolmanager.connection_pool_kw.pop("source_address", None)
+                adapter.poolmanager.connection_pool_kw.pop("socket_options", None)
             else:
+                options = [(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, value.encode("utf-8"))]
                 # https://docs.python.org/3/library/socket.html#socket.create_connection
-                adapter.poolmanager.connection_pool_kw.update(source_address=(value, 0))
+                adapter.poolmanager.connection_pool_kw.update(socket_options=options)
         self.set_explicit(key, None if not value else value)
 
     def _set_ipv4_ipv6(self, key, value):
@@ -372,19 +370,16 @@ class StreamlinkOptions(Options):
             urllib3_util_connection.allowed_gai_family = _original_allowed_gai_family  # type: ignore[attr-defined]
         elif key == "ipv4":
             self.set_explicit("ipv6", False)
-            urllib3_util_connection.allowed_gai_family = lambda: AF_INET  # type: ignore[attr-defined]
+            urllib3_util_connection.allowed_gai_family = lambda: socket.AF_INET  # type: ignore[attr-defined]
         else:
             self.set_explicit("ipv4", False)
-            urllib3_util_connection.allowed_gai_family = lambda: AF_INET6  # type: ignore[attr-defined]
+            urllib3_util_connection.allowed_gai_family = lambda: socket.AF_INET6  # type: ignore[attr-defined]
 
     def _set_http_proxy(self, key, value):
         self.session.http.proxies["http"] \
             = self.session.http.proxies["https"] \
             = update_scheme("https://", value, force=False)  # fmt: skip
         self._deprecate_https_proxy(key)
-
-    def _set_m3u8_proxy(self, key, value):
-        self.session.http.proxies['m3u8-proxy'] = update_scheme("https://", value, force=False)
 
     def _set_http_attr(self, key, value):
         setattr(self.session.http, self._OPTIONS_HTTP_ATTRS[key], value)
@@ -438,7 +433,6 @@ class StreamlinkOptions(Options):
     _MAP_GETTERS: ClassVar[Mapping[str, Callable[[StreamlinkOptions, str], Any]]] = {
         "http-proxy": _get_http_proxy,
         "https-proxy": _get_http_proxy,
-        "m3u8-proxy": _get_m3u8_proxy,
         "http-cookies": _get_http_attr,
         "http-headers": _get_http_attr,
         "http-query-params": _get_http_attr,
@@ -454,7 +448,6 @@ class StreamlinkOptions(Options):
         "ipv6": _set_ipv4_ipv6,
         "http-proxy": _set_http_proxy,
         "https-proxy": _set_http_proxy,
-        "m3u8-proxy": _set_m3u8_proxy,
         "http-cookies": _factory_set_http_attr_key_equals_value(";"),
         "http-headers": _factory_set_http_attr_key_equals_value(";"),
         "http-query-params": _factory_set_http_attr_key_equals_value("&"),

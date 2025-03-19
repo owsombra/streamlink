@@ -112,8 +112,7 @@ class HTTPSession(Session):
         :param sample: a sample of at least 4 bytes of the JSON text
         :return: the most likely encoding of the JSON text
         """
-        warnings.warn("Deprecated HTTPSession.determine_json_encoding() call",
-                      StreamlinkDeprecationWarning, stacklevel=1)
+        warnings.warn("Deprecated HTTPSession.determine_json_encoding() call", StreamlinkDeprecationWarning, stacklevel=1)
         data = int.from_bytes(sample[:4], "big")
 
         if data & 0xFFFFFF00 == 0:
@@ -197,7 +196,10 @@ class HTTPSession(Session):
             except Exception as rerr:
                 if isinstance(rerr, HTTPError) and rerr.response.status_code >= 400 and rerr.response.status_code != 404:
                     log.warning(
-                        f'HTTP request to URL({rerr.response.request.url}) failed.\nResponse code: {rerr.response.status_code}\nResponse headers: {rerr.response.headers}\nRequest headers: {rerr.response.request.headers}')
+                        f"[{rerr.request.method}] {rerr.response.request.url}) -> {rerr.response.status_code}\n"
+                        + f"Response headers: {rerr.response.headers}\n"
+                        + f"Request headers: {rerr.response.request.headers}",
+                    )
 
                 # If the status code is 429, do not retry!
                 if retries >= total_retries or (isinstance(rerr, HTTPError) and rerr.response.status_code == 429):

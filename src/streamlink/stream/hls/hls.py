@@ -324,15 +324,11 @@ class HLSStreamWorker(SegmentedStreamWorker[HLSSegment, Response]):
             self.playlist_reload_time_override = 0
 
     def _fetch_playlist(self) -> Response:
-        m3u8_proxy = self.session.http.proxies.get("m3u8-proxy")
         res = self.session.http.get(
-            # url=self.stream.url.replace(f"/ip/{self.session.ip}/",
-            #                             f"/ip/{self.session.proxy_ip}/") if proxy else self.stream.url,
             self.stream.url,
             exception=StreamError,
             retries=self.playlist_reload_retries,
-            proxies={"http": m3u8_proxy, "https": m3u8_proxy} if m3u8_proxy else {},
-            ** self.reader.request_params,
+            **self.reader.request_params,
         )
         res.encoding = "utf-8"
 
@@ -344,7 +340,7 @@ class HLSStreamWorker(SegmentedStreamWorker[HLSSegment, Response]):
 
         self.reader.buffer.wait_free()
 
-        log.debug("Reloading playlist")
+        log.debug(f"Reloading playlist {self.stream.url}")
         res = self._fetch_playlist()
 
         try:
@@ -368,13 +364,13 @@ class HLSStreamWorker(SegmentedStreamWorker[HLSSegment, Response]):
         if self.playlist_reload_time_override == "segment" and playlist.segments:
             return playlist.segments[-1].duration
         if self.playlist_reload_time_override == "live-edge" and playlist.segments:
-            return sum(s.duration for s in playlist.segments[-max(1, self.live_edge - 1):])
+            return sum(s.duration for s in playlist.segments[-max(1, self.live_edge - 1) :])
         if type(self.playlist_reload_time_override) is float and self.playlist_reload_time_override > 0:
             return self.playlist_reload_time_override
         if playlist.targetduration:
             return playlist.targetduration
         if playlist.segments:
-            return sum(s.duration for s in playlist.segments[-max(1, self.live_edge - 1):])
+            return sum(s.duration for s in playlist.segments[-max(1, self.live_edge - 1) :])
 
         return self.playlist_reload_time
 
@@ -461,23 +457,32 @@ class HLSStreamWorker(SegmentedStreamWorker[HLSSegment, Response]):
                 self.stream.first_segment_timestamp = int(self.playlist_segments[0].date.timestamp() * 1000)
             elif self.session.broadcast_start_time and self.playlist_segments[0].duration:
                 self.stream.first_segment_timestamp = int(
-                    (self.session.broadcast_start_time + timedelta(seconds=self.playlist_segments[0].duration * self.playlist_sequence)).timestamp() * 1000)
+                    (
+                        self.session.broadcast_start_time
+                        + timedelta(seconds=self.playlist_segments[0].duration * self.playlist_sequence)
+                    ).timestamp()
+                    * 1000,
+                )
             else:
                 log.warning("First segment timestamp is not calculated!")
 
             self.stream.segment_duration = self.playlist_segments[0].duration
 
-            log.debug("; ".join([
-                f"First Sequence: {self.playlist_segments[0].num}",
-                f"First Sequence Timestamp: {self.stream.first_segment_timestamp}",
-                f"Last Sequence: {self.playlist_segments[-1].num}",
-            ]))
-            log.debug("; ".join([
-                f"Start offset: {self.duration_offset_start}",
-                f"Duration: {self.duration_limit}",
-                f"Start Sequence: {self.playlist_sequence}",
-                f"End Sequence: {self.playlist_end}",
-            ]))
+            log.debug(
+                "; ".join([
+                    f"First Sequence: {self.playlist_segments[0].num}",
+                    f"First Sequence Timestamp: {self.stream.first_segment_timestamp}",
+                    f"Last Sequence: {self.playlist_segments[-1].num}",
+                ]),
+            )
+            log.debug(
+                "; ".join([
+                    f"Start offset: {self.duration_offset_start}",
+                    f"Duration: {self.duration_limit}",
+                    f"Start Sequence: {self.playlist_sequence}",
+                    f"End Sequence: {self.playlist_end}",
+                ]),
+            )
 
         total_duration = 0
         while not self.closed:
@@ -538,7 +543,7 @@ class HLSStreamWorker(SegmentedStreamWorker[HLSSegment, Response]):
                     self.reload_playlist()
                 except StreamError as error:
                     # Do not retry if the response code is 429!
-                    if hasattr(error, 'err') and isinstance(error.err, HTTPError) and error.err.response.status_code == 429:
+                    if hasattr(error, "err") and isinstance(error.err, HTTPError) and error.err.response.status_code == 429:
                         self.reader.close()
                         return
                     log.warning(f"Failed to reload playlist: {error}")
@@ -703,13 +708,11 @@ class HLSStream(HTTPStream):
 
     @classmethod
     def _fetch_variant_playlist(cls, session: Streamlink, url: str, **request_args) -> Response:
-        m3u8_proxy = session.http.proxies.get("m3u8-proxy")
         res = session.http.get(
-            # url=url.replace(f"/ip/{session.ip}/", f"/ip/{session.proxy_ip}/") if proxy else url,
             url,
             exception=OSError,
-            proxies={"http": m3u8_proxy, "https": m3u8_proxy} if m3u8_proxy else {},
-            **request_args)
+            **request_args,
+        )
         res.encoding = "utf-8"
 
         return res
