@@ -15,6 +15,7 @@ import requests.cookies
 
 import streamlink.utils.args
 import streamlink.utils.times
+from streamlink.session.http import HTTPSession
 from streamlink.cache import Cache
 from streamlink.exceptions import FatalPluginError, NoStreamsError, PluginError
 from streamlink.options import Argument, Arguments, Options
@@ -364,7 +365,7 @@ class Plugin(metaclass=PluginMeta):
 
         return stream_types
 
-    def streams(self, stream_types=None, sorting_excludes=None):
+    def streams(self, live_check_only=False, stream_types=None, sorting_excludes=None):
         """
         Attempts to extract available streams.
 
@@ -400,7 +401,13 @@ class Plugin(metaclass=PluginMeta):
         """
 
         try:
-            ostreams = self._get_streams()
+            ostreams = self._get_streams(live_check_only)
+
+            # Reset the http connection for the re-use to other platforms if live check only.
+            if live_check_only:
+                self.session.http.close()
+                self.session.http = HTTPSession()
+
             if isinstance(ostreams, dict):
                 ostreams = ostreams.items()
 
@@ -493,7 +500,7 @@ class Plugin(metaclass=PluginMeta):
 
         return final_sorted_streams
 
-    def _get_streams(self):
+    def _get_streams(self, live_check_only=False):
         """
         Implement the stream and metadata retrieval here.
 
