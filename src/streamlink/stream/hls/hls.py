@@ -456,7 +456,6 @@ class HLSStreamWorker(SegmentedStreamWorker[HLSSegment, Response]):
         if self.playlist_segments:
             if self.playlist_segments[0].date:
                 self.stream.first_segment_timestamp = int(self.playlist_segments[0].date.timestamp() * 1000)
-                log.info(f"First segment timestamp: {self.stream.first_segment_timestamp}")
             elif self.session.broadcast_start_time and self.playlist_segments[0].duration:
                 self.stream.first_segment_timestamp = int(
                     (
@@ -465,7 +464,6 @@ class HLSStreamWorker(SegmentedStreamWorker[HLSSegment, Response]):
                     ).timestamp()
                     * 1000,
                 )
-                log.info(f"First segment timestamp: {self.stream.first_segment_timestamp}")
             else:
                 log.warning("First segment timestamp is not calculated!")
 
