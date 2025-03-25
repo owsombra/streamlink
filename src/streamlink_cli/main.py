@@ -398,7 +398,7 @@ def output_stream(stream: Stream, formatter: Formatter):
             stream_runner = StreamRunner(stream_fd, output, show_progress=show_progress)
             # noinspection PyUnboundLocalVariable
             stream_runner.run(prebuffer)
-            log.info("Last completed segments: {stream.session.completed_segments[-1]}")
+            log.info(f"Last completed segments: {stream.session.completed_segments[-1]}")
     except OSError as err:
         raise StreamlinkCLIError() from err
 
