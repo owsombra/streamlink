@@ -60,3 +60,5 @@ __test__*
 
 # pyenv
 .python-version
+.mise.toml
+venv
