@@ -35,7 +35,7 @@ from requests.exceptions import HTTPError
 from streamlink.exceptions import NoStreamsError, PluginError
 from streamlink.plugin import Plugin, pluginargument, pluginmatcher
 from streamlink.plugin.api import validate
-from streamlink.session import Streamlink
+from streamlink.session import Streamlink, http_useragents
 from streamlink.stream.hls import (
     M3U8,
     DateRange,
@@ -127,6 +127,7 @@ class TwitchM3U8Parser(M3U8Parser[TwitchM3U8, TwitchHLSSegment, HLSPlaylist]):
         daterange = self.m3u8.dateranges[-1]
         if self._is_daterange_ad(daterange):
             self.m3u8.dateranges_ads.append(daterange)
+            log.trace("Advertisement: %r", daterange)  # type: ignore[attr-defined]
 
     def get_segment(self, uri: str, **data) -> TwitchHLSSegment:
         ad = self._is_segment_ad(self._date, self._extinf.title if self._extinf else None)
@@ -154,8 +155,7 @@ class TwitchM3U8Parser(M3U8Parser[TwitchM3U8, TwitchHLSSegment, HLSPlaylist]):
         return (
             daterange.classname == "twitch-stitched-ad"
             or str(daterange.id or "").startswith("stitched-ad-")
-            or any(attr_key.startswith("X-TV-TWITCH-AD-") for attr_key in daterange.x.keys())
-        )
+        )  # fmt: skip
 
 
 class TwitchHLSStreamWorker(HLSStreamWorker):
@@ -179,6 +179,12 @@ class TwitchHLSStreamWorker(HLSStreamWorker):
         if not self.stream.low_latency:
             playlist.segments = [segment for segment in playlist.segments if not segment.prefetch]
 
+        # set ad segment duration to zero, so it doesn't affect the worker's `duration` attribute
+        # do it here instead of the parser because prefetch segment durations are averaged over all regular segments
+        for segment in playlist.segments:
+            if segment.ad:
+                segment.duration = 0.0
+
         # check for sequences with real content
         if not self.had_content:
             self.had_content = next((True for segment in playlist.segments if not segment.ad), False)
@@ -193,7 +199,7 @@ class TwitchHLSStreamWorker(HLSStreamWorker):
                 log.info("This is not a low latency stream")
 
         # show pre-roll ads message only on the first playlist containing ads
-        if self.stream.disable_ads and self.playlist_sequence == -1 and not self.had_content:
+        if self.playlist_sequence == -1 and not self.had_content:
             log.info("Waiting for pre-roll ads to finish, be patient")
 
         # log the duration of whole advertisement breaks
@@ -225,7 +231,7 @@ class TwitchHLSStreamWriter(HLSStreamWriter):
     stream: TwitchHLSStream
 
     def should_filter_segment(self, segment: TwitchHLSSegment) -> bool:  # type: ignore[override]
-        return self.stream.disable_ads and segment.ad
+        return segment.ad
 
 
 class TwitchHLSStreamReader(HLSStreamReader):
@@ -237,8 +243,7 @@ class TwitchHLSStreamReader(HLSStreamReader):
     stream: TwitchHLSStream
 
     def __init__(self, stream: TwitchHLSStream):
-        if stream.disable_ads:
-            log.info("Will skip ad segments")
+        log.info("Will skip ad segments")
         if stream.low_latency:
             live_edge = max(1, min(LOW_LATENCY_MAX_LIVE_EDGE, stream.session.options.get("hls-live-edge")))
             stream.session.options.set("hls-live-edge", live_edge)
@@ -251,25 +256,30 @@ class TwitchHLSStream(HLSStream):
     __reader__ = TwitchHLSStreamReader
     __parser__ = TwitchM3U8Parser
 
-    def __init__(self, *args, disable_ads: bool = False, low_latency: bool = False, **kwargs):
+    def __init__(self, *args, low_latency: bool = False, **kwargs):
         super().__init__(*args, **kwargs)
-        self.disable_ads = disable_ads
         self.low_latency = low_latency
 
 
 class UsherService:
-    def __init__(self, session):
+    SUPPORTED_CODECS_DEFAULT = ["h264"]
+
+    def __init__(self, session: Streamlink, supported_codecs: list[str] | None = None):
         self.session = session
+        self.supported_codecs = supported_codecs or self.SUPPORTED_CODECS_DEFAULT
 
     def _create_url(self, endpoint, **extra_params):
         url = f"https://usher.ttvnw.net{endpoint}"
         params = {
             "player": "twitchweb",
+            "platform": "web",
             "p": int(random() * 999999),
             "type": "any",
             "allow_source": "true",
             "allow_audio_only": "true",
             "allow_spectre": "false",
+            "playlist_include_framerate": "true",
+            "supported_codecs": ",".join(self.supported_codecs),
         }
         params.update(extra_params)
 
@@ -309,6 +319,7 @@ class TwitchAPI:
         self.headers.update(**dict(api_header or []))
         self.access_token_params = dict(access_token_param or [])
         self.access_token_params.setdefault("playerType", "embed")
+        self.access_token_params.setdefault("platform", "site")
 
     def call(self, data, /, *, headers=None, schema, **kwargs):
         return self.session.http.post(
@@ -360,7 +371,7 @@ class TwitchAPI:
     def metadata_video(self, video_id):
         query = self._gql_persisted_query(
             "VideoMetadata",
-            "cb3b1eb2f2d2b2f65b8389ba446ec521d76c3aa44f5424a1b1d235fe21eb4806",
+            "45111672eea2e507f8ba44d101a61862f9c56b11dee09a15634cb75cb9b9084d",
             channelLogin="",  # parameter can be empty
             videoID=video_id,
         )
@@ -396,14 +407,14 @@ class TwitchAPI:
         queries = [
             self._gql_persisted_query(
                 "ChannelShell",
-                "c3ea5a669ec074a58df5c11ce3c27093fa38534c94286dc14b68a25d5adcbf55",
+                "fea4573a7bf2644f5b3f2cbbdcbee0d17312e48d2e55f080589d053aad353f11",
                 login=channel,
-                lcpVideosEnabled=False,
             ),
             self._gql_persisted_query(
                 "StreamMetadata",
-                "059c4653b788f5bdb2f5a2d2a24b0ddc3831a15079001a3d927556a96fb0517f",
+                "b57f9b910f8cd1a4659d894fe7550ccc81ec9052c01e438b290fd66a040b9b93",
                 channelLogin=channel,
+                includeIsDJ=True,
             ),
         ]
 
@@ -446,45 +457,31 @@ class TwitchAPI:
         )
 
     def metadata_clips(self, clipname):
-        queries = [
-            self._gql_persisted_query(
-                "ClipsView",
-                "4480c1dcc2494a17bb6ef64b94a5213a956afb8a45fe314c66b0d04079a93a8f",
-                slug=clipname,
-            ),
-            self._gql_persisted_query(
-                "ClipsTitle",
-                "f6cca7f2fdfbfc2cecea0c88452500dae569191e58a265f97711f8f2a838f5b4",
-                slug=clipname,
-            ),
-        ]
+        query = self._gql_persisted_query(
+            "ShareClipRenderStatus",
+            "1844261bb449fa51e6167040311da4a7a5f1c34fe71c71a3e0c4f551bc30c698",
+            slug=clipname,
+        )
 
         return self.call(
-            queries,
+            query,
             schema=validate.all(
-                validate.list(
-                    validate.all(
-                        {
-                            "data": {
-                                "clip": {
-                                    "id": str,
-                                    "broadcaster": {"displayName": str},
-                                    "game": {"name": str},
-                                },
-                            },
+                {
+                    "data": {
+                        "clip": {
+                            "id": str,
+                            "broadcaster": {"displayName": str},
+                            "game": {"name": str},
+                            "title": str,
                         },
-                        validate.get(("data", "clip")),
-                    ),
-                    validate.all(
-                        {"data": {"clip": {"title": str}}},
-                        validate.get(("data", "clip")),
-                    ),
-                ),
+                    },
+                },
+                validate.get(("data", "clip")),
                 validate.union_get(
-                    (0, "id"),
-                    (0, "broadcaster", "displayName"),
-                    (0, "game", "name"),
-                    (1, "title"),
+                    "id",
+                    ("broadcaster", "displayName"),
+                    ("game", "name"),
+                    "title",
                 ),
             ),
         )
@@ -492,7 +489,7 @@ class TwitchAPI:
     def access_token(self, is_live, channel_or_vod, client_integrity: tuple[str, str] | None = None):
         query = self._gql_persisted_query(
             "PlaybackAccessToken",
-            "0828119ded1c13477966434e15800ff57ddacf13ba1911c129dc2200705b0712",
+            "ed230aa1e33e07eebb8928504583da78a5173989fadfb1ac94be06a04f3cdbe9",
             isLive=is_live,
             login=channel_or_vod if is_live else "",
             isVod=not is_live,
@@ -507,7 +504,10 @@ class TwitchAPI:
             validate.union_get("signature", "value"),
         )
 
-        headers = {}
+        headers = {
+            # https://github.com/streamlink/streamlink/issues/6574
+            "User-Agent": http_useragents.DEFAULT,
+        }
         if client_integrity:
             headers["Device-Id"], headers["Client-Integrity"] = client_integrity
 
@@ -548,8 +548,9 @@ class TwitchAPI:
     def clips(self, clipname):
         query = self._gql_persisted_query(
             "VideoAccessToken_Clip",
-            "36b89d2507fce29e5ca551df756d27c1cfe079e2609642b4390aa4c35796eb11",
+            "993d9a5131f15a37bd16f32342c44ed1e0b1a9b968c6afdb662d2cddd595f6c5",
             slug=clipname,
+            platform="web",
         )
 
         return self.call(
@@ -557,35 +558,38 @@ class TwitchAPI:
             schema=validate.all(
                 {
                     "data": {
-                        "clip": {
-                            "playbackAccessToken": {
-                                "signature": str,
-                                "value": str,
-                            },
-                            "videoQualities": [
-                                validate.all(
-                                    {
-                                        "frameRate": validate.transform(int),
-                                        "quality": str,
-                                        "sourceURL": validate.url(),
-                                    },
-                                    validate.transform(
-                                        lambda q: (
-                                            f"{q['quality']}p{q['frameRate']}",
-                                            q["sourceURL"],
+                        "clip": validate.none_or_all(
+                            {
+                                "playbackAccessToken": {
+                                    "signature": str,
+                                    "value": str,
+                                },
+                                "videoQualities": validate.all(
+                                    [
+                                        {
+                                            "frameRate": validate.transform(int),
+                                            "quality": str,
+                                            "sourceURL": validate.any("", validate.url()),
+                                        },
+                                    ],
+                                    validate.filter(lambda clip: clip["sourceURL"]),
+                                    validate.map(
+                                        lambda clip: (
+                                            f"{clip['quality']}p{clip['frameRate']}",
+                                            clip["sourceURL"],
                                         ),
                                     ),
                                 ),
-                            ],
-                        },
+                            },
+                            validate.union_get(
+                                ("playbackAccessToken", "signature"),
+                                ("playbackAccessToken", "value"),
+                                "videoQualities",
+                            ),
+                        ),
                     },
                 },
                 validate.get(("data", "clip")),
-                validate.union_get(
-                    ("playbackAccessToken", "signature"),
-                    ("playbackAccessToken", "value"),
-                    "videoQualities",
-                ),
             ),
         )
 
@@ -715,10 +719,7 @@ class TwitchClientIntegrity:
 @pluginargument(
     "disable-ads",
     action="store_true",
-    help="""
-        Skip embedded advertisement segments at the beginning or during a stream.
-        Will cause these segments to be missing from the output.
-    """,
+    help=argparse.SUPPRESS,
 )
 @pluginargument(
     "disable-hosting",
@@ -745,6 +746,27 @@ class TwitchClientIntegrity:
 
         Note: Low latency streams have to be enabled by the broadcasters on Twitch themselves.
         Regular streams can cause buffering issues with this option enabled due to the reduced --hls-live-edge value.
+    """,
+)
+@pluginargument(
+    "supported-codecs",
+    metavar="CODECS",
+    type="comma_list_filter",
+    type_kwargs={
+        "acceptable": ["h264", "h265", "av1"],
+        "unique": True,
+    },
+    default=["h264"],
+    help="""
+        A comma-separated list of codec names which signals Twitch the client's stream codec preference.
+        Which streams and which codecs are available depends on the specific channel and broadcast.
+
+        Default is "h264".
+
+        Supported codecs are h264, h265 and av1. Set to "h264,h265,av1" to enable all codecs.
+
+        Higher quality streams may only be available by enabling h265 or av1.
+        Lower quality streams which are re-encoded on Twitch's end may still be h264, even if not requested.
     """,
 )
 @pluginargument(
@@ -813,7 +835,10 @@ class Twitch(Plugin):
             api_header=self.get_option("api-header"),
             access_token_param=self.get_option("access-token-param"),
         )
-        self.usher = UsherService(session=self.session)
+        self.usher = UsherService(
+            session=self.session,
+            supported_codecs=self.get_option("supported-codecs"),
+        )
 
         self._checked_metadata = False
 
@@ -939,7 +964,6 @@ class Twitch(Plugin):
                 # This is a workaround for checking the GQL API for the channel's live status,
                 # which can be delayed by up to a minute.
                 check_streams=True,
-                disable_ads=self.get_option("disable-ads"),
                 low_latency=self.get_option("low-latency"),
                 **extra_params,
             )
@@ -973,11 +997,11 @@ class Twitch(Plugin):
         return streams
 
     def _get_clips(self):
-        try:
-            sig, token, streams = self.api.clips(self.clip_id)
-        except (PluginError, TypeError):
+        data = self.api.clips(self.clip_id)
+        if not data:
             return
 
+        sig, token, streams = data
         for quality, stream in streams:
             yield quality, HTTPStream(self.session, update_qsd(stream, {"sig": sig, "token": token}))
 
