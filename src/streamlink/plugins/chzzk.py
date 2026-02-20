@@ -98,7 +98,7 @@ class ChzzkHLSStream(HLSStream):
 
 
 class ChzzkAPI:
-    _CHANNELS_LIVE_DETAIL_URL = "https://api.chzzk.naver.com/service/v3/channels/{channel_id}/live-detail"
+    _CHANNELS_LIVE_DETAIL_URL = "https://api.chzzk.naver.com/service/v3.3/channels/{channel_id}/live-detail"
     _VIDEOS_URL = "https://api.chzzk.naver.com/service/v3/videos/{video_id}"
     _CLIP_URL = "https://api.chzzk.naver.com/service/v1/play-info/clip/{clip_id}"
 
