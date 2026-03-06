@@ -262,6 +262,8 @@ class Chzzk(Plugin):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.session.http.headers.pop("Referer", None)
+        self.session.http.headers.pop("Origin", None)
         self._api = ChzzkAPI(self.session)
 
     def _get_live(self, channel_id, live_check_only=False):
